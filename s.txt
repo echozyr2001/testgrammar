@@ -1,0 +1,227 @@
+CompUnit → [ CompUnit ] ( Decl | FuncDef )
+Decl → ConstDecl | VarDecl
+ConstDecl → 'const' BType ConstDef { ',' ConstDef } ';'
+BType → 'int' | 'float'
+ConstDef → Ident { '[' ConstExp ']' } '=' ConstInitVal
+ConstInitVal → ConstExp | '{' [ ConstInitVal { ',' ConstInitVal } ] '}'
+VarDecl → BType VarDef { ',' VarDef } ';'
+VarDef → Ident { '[' ConstExp ']' } | Ident { '[' ConstExp ']' } '=' InitVal
+InitVal → Exp | '{' [ InitVal { ',' InitVal } ] '}'
+FuncDef → FuncType Ident '(' [FuncFParams] ')' Block
+FuncType → 'void' | 'int' | 'float'
+FuncFParams → FuncFParam { ',' FuncFParam }
+FuncFParam → BType Ident ['[' ']' { '[' Exp ']' }]
+Block → '{' { BlockItem } '}'
+BlockItem → Decl | Stmt
+Stmt → LVal '=' Exp ';' | [Exp] ';' | Block | 'if' '(' Cond ')' Stmt [ 'else' Stmt ] | 'while' '(' Cond ')' Stmt | 'break' ';' | 'continue' ';' | 'return' [Exp] ';'
+Exp → AddExp
+Cond → LOrExp
+LVal → Ident {'[' Exp ']'}
+PrimaryExp → '(' Exp ')' | LVal | Number
+Number → IntConst | floatConst
+UnaryExp → PrimaryExp | Ident '(' [FuncRParams] ')' | UnaryOp UnaryExp
+UnaryOp → '+' | '−' | '!'
+FuncRParams → Exp { ',' Exp }
+MulExp → UnaryExp | MulExp ('*' | '/' | '%') UnaryExp
+AddExp → MulExp | AddExp ('+' | '−') MulExp
+RelExp → AddExp | RelExp ('<' | '>' | '<=' | '>=') AddExp
+EqExp → RelExp | EqExp ('==' | '!=') RelExp
+LAndExp → EqExp | LAndExp '&&' EqExp
+LOrExp → LAndExp | LOrExp '||' LAndExp
+ConstExp → AddExp
+
+
+CompUnit → [ CompUnit' ] ;
+CompUnit' → Decl | FuncDef ;
+Decl → ConstDecl | VarDecl ;
+ConstDecl → 'const' BType ConstDef { ',' ConstDef } ';' ;
+BType → 'int' | 'float' ;
+ConstDef → Ident { '[' ConstExp ']' } '=' ConstInitVal ;
+ConstInitVal → ConstExp | '{' [ ConstInitVal { ',' ConstInitVal } ] '}' ;
+VarDecl → BType VarDef { ',' VarDef } ';' ;
+VarDef → Ident { '[' ConstExp ']' } [ '=' InitVal ] ;
+InitVal → Exp | '{' [ InitVal { ',' InitVal } ] '}' ;
+FuncDef → FuncType Ident '(' [FuncFParams] ')' Block ;
+FuncType → 'void' | 'int' | 'float' ;
+FuncFParams → FuncFParam { ',' FuncFParam } ;
+FuncFParam → BType Ident ['[' ']' { '[' Exp ']' }] ;
+Block → '{' { BlockItem } '}' ;
+BlockItem → Decl | Stmt ;
+Stmt → LVal '=' Exp ';' | [Exp] ';' | Block | 'if' '(' Cond ')' Stmt [ 'else' Stmt ] | 'while' '(' Cond ')' Stmt | 'break' ';' | 'continue' ';' | 'return' [Exp] ';' ;
+Exp → AddExp ;
+Cond → LOrExp ;
+LVal → Ident {'[' Exp ']'} ;
+PrimaryExp → '(' Exp ')' | LVal | Number ;
+Number → IntConst | floatConst ;
+UnaryExp → PrimaryExp | Ident '(' [FuncRParams] ')' | UnaryOp UnaryExp ;
+UnaryOp → '+' | '−' | '!' ;
+FuncRParams → Exp { ',' Exp } ;
+MulExp → UnaryExp MulExp' ;
+MulExp' → ('*' | '/' | '%') UnaryExp MulExp' | ε ;
+AddExp → MulExp AddExp' ;
+AddExp' → ('+' | '−') MulExp AddExp' | ε ;
+RelExp → AddExp RelExp' ;
+RelExp' → ('<' | '>' | '<=' | '>=') AddExp RelExp' | ε ;
+EqExp → RelExp EqExp' ;
+EqExp' → ('==' | '!=') RelExp EqExp' | ε ;
+LAndExp → EqExp LAndExp' ;
+LAndExp' → '&&' EqExp LAndExp' | ε ;
+LOrExp → LAndExp LOrExp' ;
+LOrExp' → '||' LAndExp LOrExp' | ε ;
+ConstExp → AddExp ;
+
+
+CompUnit → CompUnit' ;
+CompUnit' → Decl CompUnit' | FuncDef CompUnit' | ε ;
+Decl → ConstDecl | VarDecl ;
+ConstDecl → 'const' BType ConstDef ConstDefList ';' ;
+BType → 'int' | 'float' ;
+ConstDef → Ident ConstExpList '=' ConstInitVal ;
+ConstDefList → ',' ConstDef ConstDefList | ε ;
+ConstExpList → '[' ConstExp ']' ConstExpList | ε ;
+ConstInitVal → ConstExp | '{' ConstInitValList '}' ;
+ConstInitValList → ConstInitVal ConstInitValListTail | ε ;
+ConstInitValListTail → ',' ConstInitVal ConstInitValListTail | ε ;
+VarDecl → BType VarDef VarDefList ';' ;
+VarDef → Ident ConstExpList OptionalInitVal ;
+VarDefList → ',' VarDef VarDefList | ε ;
+OptionalInitVal → '=' InitVal | ε ;
+InitVal → Exp | '{' InitValList '}' ;
+InitValList → InitVal InitValListTail | ε ;
+InitValListTail → ',' InitVal InitValListTail | ε ;
+FuncDef → FuncType Ident '(' OptionalFuncFParams ')' Block ;
+FuncType → 'void' | 'int' | 'float' ;
+OptionalFuncFParams → FuncFParams | ε ;
+FuncFParams → FuncFParam FuncFParamList ;
+FuncFParamList → ',' FuncFParam FuncFParamList | ε ;
+FuncFParam → BType Ident OptionalBracketExpList ;
+OptionalBracketExpList → '[' ']' BracketExpList | ε ;
+BracketExpList → '[' Exp ']' BracketExpList | ε ;
+Block → '{' BlockItemList '}' ;
+BlockItemList → BlockItem BlockItemList | ε ;
+BlockItem → Decl | Stmt ;
+Stmt → LVal '=' Exp ';' | OptionalExp ';' | Block | 'if' '(' Cond ')' Stmt OptionalElse | 'while' '(' Cond ')' Stmt | 'break' ';' | 'continue' ';' | 'return' OptionalExp ';' ;
+OptionalExp → Exp | ε ;
+OptionalElse → 'else' Stmt | ε ;
+Exp → AddExp ;
+Cond → LOrExp ;
+LVal → Ident ExpList ;
+ExpList → '[' Exp ']' ExpList | ε ;
+PrimaryExp → '(' Exp ')' | LVal | Number ;
+Number → IntConst | floatConst ;
+UnaryExp → PrimaryExp | Ident '(' OptionalFuncRParams ')' | UnaryOp UnaryExp ;
+OptionalFuncRParams → FuncRParams | ε ;
+FuncRParams → Exp ExpListTail ;
+ExpListTail → ',' Exp ExpListTail | ε ;
+UnaryOp → '+' | '−' | '!' ;
+MulExp → UnaryExp MulExp' ;
+MulExp' → ('*' | '/' | '%') UnaryExp MulExp' | ε ;
+AddExp → MulExp AddExp' ;
+AddExp' → ('+' | '−') MulExp AddExp' | ε ;
+RelExp → AddExp RelExp' ;
+RelExp' → ('<' | '>' | '<=' | '>=') AddExp RelExp' | ε ;
+EqExp → RelExp EqExp' ;
+EqExp' → ('==' | '!=') RelExp EqExp' | ε ;
+LAndExp → EqExp LAndExp' ;
+LAndExp' → '&&' EqExp LAndExp' | ε ;
+LOrExp → LAndExp LOrExp' ;
+LOrExp' → '||' LAndExp LOrExp' | ε ;
+ConstExp → AddExp ;
+
+
+%token 'const' 'int' 'float' 'Ident' '[' ']' '=' '{' '}' ',' ';' void '(' ')' 'if' 'while' 'break' 'continue' 'return' '+' '−' '!' '*' '/' '%' '<' '>' '<=' '>=' '==' '!=' '&&' '||'
+{
+CompUnit':CompUnit
+CompUnit:Decl CompUnit|FuncDef CompUnit|ε
+Decl:ConstDecl|VarDecl
+ConstDecl:'const' BType ConstDef ConstDefList ';'
+BType:'int'|'float'
+ConstDef:Ident ConstExpList '=' ConstInitVal
+ConstDefList:',' ConstDef ConstDefList|ε
+ConstExpList:'[' ConstExp ']' ConstExpList|ε
+ConstInitVal:ConstExp|'{' ConstInitValList '}'
+ConstInitValList:ConstInitVal ConstInitValListTail|ε
+ConstInitValListTail:',' ConstInitVal ConstInitValListTail|ε
+VarDecl:BType VarDef VarDefList ';'
+VarDef:Ident ConstExpList OptionalInitVal
+VarDefList:',' VarDef VarDefList|ε
+OptionalInitVal:'=' InitVal|ε
+InitVal:Exp|'{' InitValList '}'
+InitValList:InitVal InitValListTail|ε
+InitValListTail:',' InitVal InitValListTail|ε
+FuncDef:FuncType Ident '(' OptionalFuncFParams ')' Block
+FuncType:'void'|'int'|'float'
+OptionalFuncFParams:FuncFParams|ε
+FuncFParams:FuncFParam FuncFParamList
+FuncFParamList:',' FuncFParam FuncFParamList|ε
+FuncFParam:BType Ident OptionalBracketExpList
+OptionalBracketExpList:'[' ']' BracketExpList|ε
+BracketExpList:'[' Exp ']' BracketExpList|ε
+Block:'{' BlockItemList '}'
+BlockItemList:BlockItem BlockItemList|ε
+BlockItem:Decl|Stmt
+Stmt:LVal '=' Exp ';'|OptionalExp ';'|Block|'if' '(' Cond ')' Stmt OptionalElse|'while' '(' Cond ')' Stmt|'break' ';'|'continue' ';'|'return' OptionalExp ';'
+OptionalExp:Exp|ε
+OptionalElse:'else' Stmt|ε
+Exp:AddExp
+Cond:LOrExp
+LVal:Ident ExpList
+ExpList:'[' Exp ']' ExpList|ε
+PrimaryExp:'(' Exp ')'|LVal|Number
+Number:IntConst|floatConst
+UnaryExp:PrimaryExp|Ident '(' OptionalFuncRParams ')'|UnaryOp UnaryExp
+OptionalFuncRParams:FuncRParams|ε
+FuncRParams:Exp ExpListTail
+ExpListTail:',' Exp ExpListTail|ε
+UnaryOp:'+'|'−'|'!'
+MulExp:UnaryExp MulExp'
+MulExp':('*'|'/'|'%') UnaryExp MulExp'|ε
+AddExp:MulExp AddExp'
+AddExp':('+'|'−') MulExp AddExp'|ε
+RelExp:AddExp RelExp'
+RelExp':('<'|'>'|'<='|'>=') AddExp RelExp'|ε
+EqExp:RelExp EqExp'
+EqExp':('=='|'!=') RelExp EqExp'|ε
+LAndExp:EqExp LAndExp'
+LAndExp':'&&' EqExp LAndExp'|ε
+LOrExp:LAndExp LOrExp'
+LOrExp':'||' LAndExp LOrExp'|ε
+ConstExp:AddExp
+}
+
+  // pub fn compute_lr1_item_sets(&mut self, grammar: &Grammar, START_SYMBOL: &Element) {
+  //   let mut item_sets = Vec::<HashSet<LR1Item>>::new();
+  //
+  //   let mut initial_set = HashSet::<LR1Item>::new();
+  //   let initial_item = LR1Item {
+  //     head: START_SYMBOL.clone(),
+  //     body: grammar.pro_list.get(START_SYMBOL).unwrap()[0].clone(),
+  //     dot: 0,
+  //     lookahead: Element::Terminal("#".to_string()),
+  //   };
+  //   initial_set.insert(initial_item);
+  //   item_sets.push(self.closure(grammar, &initial_set));
+  //
+  //   let mut changed = true;
+  //   while changed {
+  //     changed = false;
+  //
+  //     let mut new_item_set = Vec::<HashSet<LR1Item>>::new();
+  //     // let mut new_item_set = Vec::<HashSet<LR1Item>>::new();
+  //     for item_set in &item_sets {
+  //       for item in item_set {
+  //         let dot_position = item.dot;
+  //         if dot_position < item.body.len() {
+  //           let next_symbol = &item.body[item.dot];
+  //           let goto_set = self.goto(grammar, item_set, next_symbol);
+  //           if !item_sets.contains(&goto_set) && !new_item_set.contains(&goto_set) {
+  //             new_item_set.push(goto_set);
+  //             changed = true;
+  //           }
+  //         }
+  //       }
+  //     }
+  //     item_sets.extend(new_item_set.into_iter());
+  //   }
+  //   self.lr1_sets = item_sets;
+  // }

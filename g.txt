@@ -1,0 +1,66 @@
+%token err a b c d e # Ident IntConst FloatConst 'const' 'int' 'float' '[' ']' '=' '{' '}' ',' ';' 'void' '(' ')' 'if' 'else' 'while' 'break' 'continue' 'return' '+' '−' '!' '*' '/' '%' '<' '>' '<=' '>=' '==' '!=' '&&' '||' ε
+{
+CompUnit':CompUnit
+CompUnit:Decl CompUnit#|#FuncDef CompUnit#|#ε
+Decl:ConstDecl#|#VarDecl
+ConstDecl:'const' BType ConstDef ConstDefList ';'
+BType:'int'#|#'float'
+ConstDef:Ident ConstExpList '=' ConstInitVal
+ConstDefList:',' ConstDef ConstDefList#|#ε
+ConstExpList:'[' ConstExp ']' ConstExpList#|#ε
+ConstInitVal:ConstExp#|#'{' ConstInitValList '}'
+ConstInitValList:ConstInitVal ConstInitValListTail#|#ε
+ConstInitValListTail:',' ConstInitVal ConstInitValListTail#|#ε
+VarDecl:BType VarDef VarDefList ';'
+VarDef:Ident ConstExpList OptionalInitVal
+VarDefList:',' VarDef VarDefList#|#ε
+OptionalInitVal:'=' InitVal#|#ε
+InitVal:Exp#|#'{' InitValList '}'
+InitValList:InitVal InitValListTail#|#ε
+InitValListTail:',' InitVal InitValListTail#|#ε
+FuncDef:FuncType Ident '(' OptionalFuncFParams ')' Block
+FuncType:'void'#|#'int'#|#'float'
+OptionalFuncFParams:FuncFParams#|#ε
+FuncFParams:FuncFParam FuncFParamList
+FuncFParamList:',' FuncFParam FuncFParamList#|#ε
+FuncFParam:BType Ident OptionalBracketExpList
+OptionalBracketExpList:'[' ']' BracketExpList#|#ε
+BracketExpList:'[' Exp ']' BracketExpList#|#ε
+Block:'{' BlockItemList '}'
+BlockItemList:BlockItem BlockItemList#|#ε
+BlockItem:Decl#|#Stmt
+Stmt:LVal '=' Exp ';'#|#OptionalExp ';'#|#Block#|#'if' '(' Cond ')' Stmt OptionalElse#|#'while' '(' Cond ')' Stmt#|#'break' ';'#|#'continue' ';'#|#'return' OptionalExp ';'
+OptionalExp:Exp#|#ε
+OptionalElse:'else' Stmt#|#ε
+Exp:AddExp
+Cond:LOrExp
+LVal:Ident ExpList
+ExpList:'[' Exp ']' ExpList#|#ε
+PrimaryExp:'(' Exp ')'#|#LVal#|#Number
+Number:IntConst#|#FloatConst
+UnaryExp:PrimaryExp#|#Ident '(' OptionalFuncRParams ')'#|#UnaryOp UnaryExp
+OptionalFuncRParams:FuncRParams#|#ε
+FuncRParams:Exp ExpListTail
+ExpListTail:',' Exp ExpListTail#|#ε
+UnaryOp:'+'#|#'−'#|#'!'
+MulExp:UnaryExp MulExp'
+MulExp':MulExpOp UnaryExp MulExp'#|#ε
+MulExpOp:'*'#|#'/'#|#'%'
+AddExp:MulExp AddExp'
+AddExp':AddExpOp MulExp AddExp'#|#ε
+AddExpOp:'+'#|#'−'
+RelExp:AddExp RelExp'
+RelExp':RelExpOp AddExp RelExp'#|#ε
+RelExpOp:'<'#|#'>'#|#'<='#|#'>='
+EqExp:RelExp EqExp'
+EqExp':EqExpOp RelExp EqExp'#|#ε
+EqExpOp:'=='#|#'!='
+LAndExp:EqExp LAndExp'
+LAndExp':'&&' EqExp LAndExp'#|#ε
+LOrExp:LAndExp LOrExp'
+LOrExp':'||' LAndExp LOrExp'#|#ε
+ConstExp:AddExp
+S':S
+S:a A d#|#b A c#|#a e c#|#b e d
+A:e#|#ε
+}
