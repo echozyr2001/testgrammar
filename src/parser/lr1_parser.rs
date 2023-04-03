@@ -20,9 +20,7 @@ pub struct LR1Parser {
     tokens: Vec<Element>,
     error_list: Vec<ParserError>,
     status: Status,
-    semicolon_err: bool,
-    semicolon_status: Status,
-    status_stack: Vec<(Element, Status)>,
+    part_table: PartitionTable,
     pos: usize,
     pub lr1_sets: LR1Sets,
     pub action_table: ActionTable,
@@ -36,6 +34,13 @@ impl LR1Parser {
     fn get_last_token(&self) -> &Element {
         &self.tokens[if self.pos == 0 { 0 } else { self.pos - 1 }]
     }
+    fn get_current_token(&self) -> &Element {
+        &self.tokens[if self.pos >= self.tokens.len() {
+            self.tokens.len()
+        } else {
+            self.pos
+        }]
+    }
 }
 
 impl LR1Parser {
@@ -44,15 +49,6 @@ impl LR1Parser {
         self.tokens.push(Element::Terminal("#".to_string()));
 
         loop {
-            if self.get_last_token().is_semicolon() {
-                if self.semicolon_err {
-                    unreachable!();
-                } else {
-                    self.semicolon_status.node_stack = self.status.node_stack.clone();
-                    self.semicolon_status.state_stack = self.status.state_stack.clone();
-                }
-            }
-
             if self.pos >= self.tokens.len() {
                 break;
             }
@@ -72,6 +68,7 @@ impl LR1Parser {
                         children: None,
                     });
                     self.step_forward();
+                    self.try_partition();
                 }
                 Some(Action::Reduce(prod_head, prod_body)) => {
                     let mut children: Vec<TreeNode> = Vec::new();
@@ -118,7 +115,6 @@ impl LR1Parser {
     }
 
     fn err_handle(&mut self) {
-        self.semicolon_err = true;
         // error_list.(format!("Unexpected symbol '{:?}' at position {}", symbol, input_pos));
         self.error_list.push(ParserError {
             error_type: ErrorType::Unknown(format!(
@@ -137,14 +133,11 @@ impl LR1Parser {
                 break;
             }
 
-            if let Element::Terminal(token) = self.tokens[self.pos].clone() {
-                if token.as_str() == "';'" {
-                    self.semicolon_err = false;
-                    self.status.node_stack = self.semicolon_status.node_stack.clone();
-                    self.status.state_stack = self.semicolon_status.state_stack.clone();
-                    self.step_forward();
-                    break;
-                }
+            let symbol = Delimiter::from(self.get_current_token().clone());
+            if symbol.is_limiter() {
+                self.fallback();
+                // self.step_forward();
+                break;
             }
 
             let next_symbol = self.tokens[self.pos].clone();
@@ -156,37 +149,94 @@ impl LR1Parser {
                 ))
                 .is_some()
             {
-                self.semicolon_err = false;
                 found_acceptable_symbol = true;
             }
         }
     }
     fn step_forward(&mut self) {
         self.pos += 1;
-        let last_token = self.get_last_token().clone();
-        if last_token.is_left_bracket() {
-            self.status_stack.push((last_token, self.status.clone()));
-        } else if last_token.is_right_bracket() {
-            let mut err = false;
-            loop {
-                if let Some((token, status)) = self.status_stack.pop() {
-                    if token.is_paired(&last_token) {
-                        if err {
-                            self.status = status;
-                        }
-                        break;
-                    } else {
-                        err = true;
-                        self.error_list.push(ParserError {
-                            error_type: ErrorType::Missing(token.clone().unwarp().0),
-                            error_pos: (token.get_pos()),
-                        })
-                    }
+        // let last_token = self.get_last_token().clone();
+        // if last_token.is_left_bracket() {
+        //     self.status_stack.push((last_token, self.status.clone()));
+        // } else if last_token.is_right_bracket() {
+        //     let mut err = false;
+        //     loop {
+        //         if let Some((token, status)) = self.status_stack.pop() {
+        //             if token.is_paired(&last_token) {
+        //                 if err {
+        //                     self.status = status;
+        //                 }
+        //                 break;
+        //             } else {
+        //                 err = true;
+        //                 self.error_list.push(ParserError {
+        //                     error_type: ErrorType::Missing(token.clone().unwarp().0),
+        //                     error_pos: (token.get_pos()),
+        //                 })
+        //             }
+        //         } else {
+        //             self.status = Status::default();
+        //             break;
+        //         }
+        //     }
+        // }
+    }
+    fn fallback(&mut self) {
+        self.status = self.part_table.get_last_status()
+    }
+    fn try_partition(&mut self) {
+        let symbol = Delimiter::from(self.get_last_token().clone());
+        if symbol.is_delimiter() {
+            self.part_table.update(Partition {
+                partition_head: symbol,
+                status: self.status.clone(),
+            })
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+struct PartitionTable {
+    table: Vec<Partition>,
+}
+impl PartitionTable {
+    fn get_last_token(&self) -> Delimiter {
+        if let Some(v) = self.table.last() {
+            v.partition_head
+        } else {
+            Delimiter::Default
+        }
+    }
+    fn get_last_status(&self) -> Status {
+        if let Some(v) = self.table.last() {
+            v.status.clone()
+        } else {
+            Status::default()
+        }
+    }
+    fn update(&mut self, partition: Partition) {
+        let token = partition.partition_head;
+        match token {
+            Delimiter::Semi
+            | Delimiter::OpenParen
+            | Delimiter::OpenBrace
+            | Delimiter::OpenBracket => {
+                if self.get_last_token() == Delimiter::Semi {
+                    self.table.pop();
+                    self.table.push(partition);
                 } else {
-                    self.status = Status::default();
-                    break;
+                    self.table.push(partition);
                 }
             }
+            Delimiter::CloseParen | Delimiter::CloseBrace | Delimiter::CloseBracket => {
+                if self.get_last_token() == Delimiter::Semi {
+                    self.table.pop();
+                    self.table.pop();
+                } else {
+                    self.table.pop();
+                }
+            }
+            Delimiter::Default => (),
         }
     }
 }
@@ -206,6 +256,66 @@ impl Default for Status {
         Self {
             state_stack,
             node_stack,
+        }
+    }
+}
+#[derive(Debug)]
+pub struct Partition {
+    partition_head: Delimiter,
+    status: Status,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Delimiter {
+    /// ";"
+    Semi,
+    /// "("
+    OpenParen,
+    /// ")"
+    CloseParen,
+    /// "{"
+    OpenBrace,
+    /// "}"
+    CloseBrace,
+    /// "["
+    OpenBracket,
+    /// "]"
+    CloseBracket,
+    Default,
+}
+impl Delimiter {
+    fn is_delimiter(&self) -> bool {
+        self != &Self::Default
+    }
+    fn is_limiter(&self) -> bool {
+        matches!(
+            self,
+            Delimiter::Semi
+                | Delimiter::CloseParen
+                | Delimiter::CloseBrace
+                | Delimiter::CloseBracket
+        )
+    }
+}
+impl From<Element> for Delimiter {
+    fn from(v: Element) -> Self {
+        match v.unwarp().0.as_str() {
+            "';'" => Delimiter::Semi,
+            "'('" => Delimiter::OpenParen,
+            "')'" => Delimiter::CloseParen,
+            "'{'" => Delimiter::OpenBrace,
+            "'}'" => Delimiter::CloseBrace,
+            "'['" => Delimiter::OpenBracket,
+            "']'" => Delimiter::CloseBracket,
+            _ => Delimiter::Default,
+        }
+    }
+}
+impl Default for Partition {
+    fn default() -> Self {
+        Self {
+            partition_head: Delimiter::Default,
+            status: Default::default(),
         }
     }
 }
