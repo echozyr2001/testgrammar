@@ -37,12 +37,20 @@ impl LR1Parser {
   fn get_last_token(&self) -> &Element {
     &self.tokens[if self.pos == 0 { 0 } else { self.pos - 1 }]
   }
+  fn get_current_token(&self) -> &Element {
+    &self.tokens[self.pos]
+  }
+  fn can_process(&self) -> bool {
+    self.action_table.get(&(self.status.state_stack.last().unwrap().clone(),
+                            self.get_current_token().clone())).is_some()
+  }
 }
 
 impl LR1Parser {
   pub fn construct_tree(mut self, input: &[Element]) -> Self {
     self.tokens = input.to_owned();
     self.tokens.push(Element::Terminal("#".to_string()));
+    self.status_stack.push((Element::Terminal("#".to_string()), self.status.clone()));
 
     loop {
       // if self.get_last_token().is_semicolon() {
@@ -128,38 +136,17 @@ impl LR1Parser {
       )),
       error_pos: self.tokens[self.pos].get_pos(),
     });
+    self.status = self.status_stack.last().unwrap().1.clone();
 
-    // 错误处理：跳过输入直到找到一个可以接受的符号
-    let mut found_acceptable_symbol = false;
-    while !found_acceptable_symbol {
-      self.step_forward();
-
+    loop {
+      self.pos += 1;
       if self.pos >= self.tokens.len() {
         break;
       }
-
-      if let Element::Terminal(token) = self.tokens[self.pos].clone() {
-        if token.as_str() == "';'" {
-          self.semicolon_err = false;
-          self.status.node_stack = self.semicolon_status.node_stack.clone();
-          self.status.state_stack = self.semicolon_status.state_stack.clone();
-          self.step_forward();
-          break;
-        }
+      if self.get_last_token().is_semicolon() {
+        break;
       }
-
-      let next_symbol = self.tokens[self.pos].clone();
-      if self
-        .action_table
-        .get(&(
-          self.status.state_stack.last().unwrap().clone(),
-          next_symbol.clone(),
-        ))
-        .is_some()
-      {
-        self.semicolon_err = false;
-        found_acceptable_symbol = true;
-      }
+      if self.get_current_token().is_left_bracket() && self.can_process() { break; }
     }
   }
   fn step_forward(&mut self) {
