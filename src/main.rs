@@ -15,10 +15,10 @@ fn main() {
     let input: Vec<Element> = vec![
     "'int'", "Ident", "'('", "')'",
     "'{'",
-    "'sif'", "'('", "IntConst", "')'", "'{'", "IntConst", "';'", "'}'",
+    "'if'", "'('", "IntConst", "')'", "'{'", "errIntConst", "';'", "IntConst", "';'", "'}'",
     "'const'", "'int'", "Ident",  "IntConst", "';'",
     "'}'",
-    "'const'", "'int'", "errIdent", "'='", "'{'", "IntConst", "'}'", "';'",
+    "'const'", "'int'", "Ident", "'='", "'{'", "IntConst", "'}'", "';'",
     "'const'", "'int'", "Ident", "'='", "IntConst", "';'",
     // "'const'", "'int'", "Ident", "'='", "IntConst", "';'",
     // "'const'", "'float'", "Ident", "'='", "FloatConst", "';'",
@@ -30,5 +30,3 @@ fn main() {
   let tmp = lr1.construct_tree(&input);
   print!("{}", tmp);
 }
-
-// 递归输出语法树, 使用depth来控制缩进

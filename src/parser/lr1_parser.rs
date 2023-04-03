@@ -128,7 +128,6 @@ impl LR1Parser {
 
   fn err_handle(&mut self) {
     self.semicolon_err = true;
-    // error_list.(format!("Unexpected symbol '{:?}' at position {}", symbol, input_pos));
     self.error_list.push(ParserError {
       error_type: ErrorType::Unknown(format!(
         "Unexpected symbol '{:?}' at position {}",
@@ -136,57 +135,41 @@ impl LR1Parser {
       )),
       error_pos: self.tokens[self.pos].get_pos(),
     });
-    self.status = self.status_stack.last().unwrap().1.clone();
+
+    let restore_to = self.status_stack.pop().unwrap();
 
     loop {
       self.pos += 1;
       if self.pos >= self.tokens.len() {
         break;
       }
-      if self.get_last_token().is_semicolon() {
+      let last_token = self.get_last_token();
+      if restore_to.0.is_semicolon() && last_token.is_semicolon() {
+        break;
+      } else if restore_to.0.is_paired(last_token) {
         break;
       }
-      if self.get_current_token().is_left_bracket() && self.can_process() { break; }
     }
+    self.status = restore_to.1;
   }
+
   fn step_forward(&mut self) {
-    self.pos += 1;
-    let last_token = self.get_last_token().clone();
-    if last_token.is_left_bracket() {
-      self.status_stack.push((last_token, self.status.clone()));
-    } else if last_token.is_semicolon() {
+    let current_token = self.get_current_token().clone();
+    if current_token.is_left_bracket() {
+      self.status_stack.push((current_token, self.status.clone()));
+    } else if current_token.is_semicolon() {
       if self.status_stack.last().unwrap().0.is_semicolon() {
         self.status_stack.pop();
-        self.status_stack.push((last_token, self.status.clone()));
+        self.status_stack.push((current_token, self.status.clone()));
       } else {
-        self.status_stack.push((last_token, self.status.clone()));
+        self.status_stack.push((current_token, self.status.clone()));
       }
-    } else if last_token.is_right_bracket() {
-      // let mut err = false;
-      loop {
-        if let Some((token, status)) = self.status_stack.pop() {
-          // if token.is_paired(&last_token) {
-          //   if err {
-          //     self.status = status;
-          //   }
-          //   break;
-          // } else {
-          //   err = true;
-          //   self.error_list.push(ParserError {
-          //     error_type: ErrorType::Missing(token.clone().unwarp().0),
-          //     error_pos: (token.get_pos()),
-          //   })
-          // }
-          if token.is_paired(&last_token) {
-            break;
-          }
-        }
-        // } else {
-        //   self.status = Status::default();
-        //   break;
-        // }
+    } else if current_token.is_right_bracket() {
+      if self.status_stack.pop().unwrap().0.is_semicolon() {
+        self.status_stack.pop();
       }
     }
+    self.pos += 1;
   }
 }
 
