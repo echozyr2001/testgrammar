@@ -6,34 +6,34 @@ pub enum Element {
     NotTerminal(String),
 }
 impl Element {
-    pub(crate) fn is_semicolon(&self) -> bool {
-        if let Element::Terminal(token) = self {
-            return token.as_str() == "';'";
-        }
-        false
-    }
-    pub(crate) fn is_left_bracket(&self) -> bool {
-        if let Element::Terminal(token) = self {
-            return token.as_str() == "'{'" || token.as_str() == "'['" || token.as_str() == "'('";
-        }
-        false
-    }
-    pub(crate) fn is_right_bracket(&self) -> bool {
-        if let Element::Terminal(token) = self {
-            return token.as_str() == "'}'" || token.as_str() == "']'" || token.as_str() == "')'";
-        }
-        false
-    }
-    pub(crate) fn is_paired(&self, rhs: &Element) -> bool {
-        let left = self.clone().unwarp().0;
-        let right = rhs.clone().unwarp().0;
-        match right.as_str() {
-            "'}'" => left.as_str() == "'{'",
-            "']'" => left.as_str() == "'['",
-            "')'" => left.as_str() == "'('",
-            &_ => false,
-        }
-    }
+    // pub(crate) fn is_semicolon(&self) -> bool {
+    //     if let Element::Terminal(token) = self {
+    //         return token.as_str() == "';'";
+    //     }
+    //     false
+    // }
+    // pub(crate) fn is_left_bracket(&self) -> bool {
+    //     if let Element::Terminal(token) = self {
+    //         return token.as_str() == "'{'" || token.as_str() == "'['" || token.as_str() == "'('";
+    //     }
+    //     false
+    // }
+    // pub(crate) fn is_right_bracket(&self) -> bool {
+    //     if let Element::Terminal(token) = self {
+    //         return token.as_str() == "'}'" || token.as_str() == "']'" || token.as_str() == "')'";
+    //     }
+    //     false
+    // }
+    // pub(crate) fn is_paired(&self, rhs: &Element) -> bool {
+    //     let left = self.clone().unwarp().0;
+    //     let right = rhs.clone().unwarp().0;
+    //     match right.as_str() {
+    //         "'}'" => left.as_str() == "'{'",
+    //         "']'" => left.as_str() == "'['",
+    //         "')'" => left.as_str() == "'('",
+    //         &_ => false,
+    //     }
+    // }
 
     pub(crate) fn unwarp(self) -> (String, usize) {
         match self {
