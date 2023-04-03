@@ -15,8 +15,8 @@ fn main() {
     let input: Vec<Element> = vec![
     "'int'", "Ident", "'('", "')'",
     "'{'",
-    "'if'", "'('", "IntConst", "')'", "'{'", "errIntConst", "';'", "IntConst", "';'", "'}'",
-    "'const'", "'int'", "Ident",  "IntConst", "';'",
+    "'if'", "'('", "errIntConst", "')'", "'{'", "IntConst", "';'", "IntConst", "';'", "'}'",
+    "'const'", "'int'", "Ident", "'='", "IntConst", "';'",
     "'}'",
     "'const'", "'int'", "Ident", "'='", "'{'", "IntConst", "'}'", "';'",
     "'const'", "'int'", "Ident", "'='", "IntConst", "';'",

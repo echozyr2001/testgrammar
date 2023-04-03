@@ -137,7 +137,6 @@ impl LR1Parser {
     });
 
     let restore_to = self.status_stack.pop().unwrap();
-
     loop {
       self.pos += 1;
       if self.pos >= self.tokens.len() {
