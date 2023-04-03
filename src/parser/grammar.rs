@@ -31,6 +31,7 @@ impl Grammar {
     self.file_load(grammar_path);
     let lines = self.file_buff.lines();
     for line in lines {
+
       if line.starts_with('{') { continue; }
       if line.starts_with('}') { continue; }
 
@@ -42,7 +43,9 @@ impl Grammar {
         continue;
       }
       {
+
         let mut tmp = line.split(':'); // 只有可能是两部分
+
         let p_head = PHead::NotTerminal(tmp.next().unwrap().to_string());
         let mut p_body = PBody::new();
         let items = tmp.next().unwrap().split("#|#"); // 拆分右部
@@ -79,7 +82,9 @@ impl Grammar {
       }
       Element::NotTerminal(_) => {
         if let Some(productions) = self.pro_list.get(symbol) {
+
           let productions: Vec<Vec<_>> = productions.to_vec();
+
           for production in productions {
             let first_symbol = &production[0];
             match first_symbol {
