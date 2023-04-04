@@ -127,7 +127,8 @@ impl LR1Parser {
   }
 
   fn err_handle(&mut self) {
-    self.semicolon_err = true;
+    // 发生了错误
+    // 首先记录错误信息
     self.error_list.push(ParserError {
       error_type: ErrorType::Unknown(format!(
         "Unexpected symbol '{:?}' at position {}",
@@ -136,37 +137,79 @@ impl LR1Parser {
       error_pos: self.tokens[self.pos].get_pos(),
     });
 
-    let restore_to = self.status_stack.pop().unwrap();
-    loop {
-      self.pos += 1;
-      if self.pos >= self.tokens.len() {
-        break;
+    // 取得上一个能被恢复的状态
+    let (restore_token, restore_status) = self.status_stack.pop().unwrap();
+    // 恢复状态
+    self.status = restore_status;
+    // 在此状态，根据分析表处理错误状态
+    let state = self.status.state_stack.last().unwrap().clone();
+    let symbol = Element::Terminal("err".to_string());
+    let action = self
+      .action_table
+      .get(&(state.clone(), symbol.clone()))
+      .cloned();
+    // action 应该只能是shift
+    match action {
+      Some(Action::Shift(state)) => {
+        self.status.state_stack.push(state);
+        self.status.node_stack.push(TreeNode {
+          element: symbol.clone(),
+          children: None,
+        });
+        self.step_forward();
       }
-      let last_token = self.get_last_token();
-      if restore_to.0.is_semicolon() && last_token.is_semicolon() {
-        break;
-      } else if restore_to.0.is_paired(last_token) {
-        break;
+      // _ => unreachable!(),
+      Some(Action::Accept) => {
+        println!("accept");
+        unreachable!();
+      }
+      Some(Action::Reduce(prod_head, prod_body)) => {
+        // 规约
+        let mut children: Vec<TreeNode> = Vec::new();
+        for _ in 0..prod_body.len() {
+          self.status.state_stack.pop();
+          children.push(self.status.node_stack.pop().unwrap());
+        }
+        children.reverse();
+
+        let state = self.status.state_stack.last().unwrap().clone();
+        let state = self
+          .goto_table
+          .get(&(state, prod_head.clone()))
+          .unwrap()
+          .clone();
+
+        self.status.state_stack.push(state);
+        self.status.node_stack.push(TreeNode {
+          element: prod_head,
+          children: Some(children),
+        });
+      }
+      None => {
+        println!("none");
+        unreachable!();
       }
     }
-    self.status = restore_to.1;
+    // 之后，继续处理输入。将pos移动到能处理的位置
+    while !self.can_process() {
+      // TODO: 我的想法是直接让pos+1
+      // self.step_forward();
+      self.pos += 1;
+    }
   }
 
   fn step_forward(&mut self) {
-    let current_token = self.get_current_token().clone();
-    if current_token.is_left_bracket() {
-      self.status_stack.push((current_token, self.status.clone()));
-    } else if current_token.is_semicolon() {
-      if self.status_stack.last().unwrap().0.is_semicolon() {
-        self.status_stack.pop();
-        self.status_stack.push((current_token, self.status.clone()));
-      } else {
-        self.status_stack.push((current_token, self.status.clone()));
-      }
-    } else if current_token.is_right_bracket() {
-      if self.status_stack.pop().unwrap().0.is_semicolon() {
-        self.status_stack.pop();
-      }
+    // 如果当前状态可以用来恢复错误，那么就把当前状态压栈
+    // 如何判断当前状态可以用来恢复错误？
+    // 查看当前状态的期望符号集，若其中包含err，那么就可以用来恢复错误
+
+    // 首先获取当前状态的期望符号集
+    let exception_tokens = self.get_exception_tokens();
+    // 然后查看期望符号集中是否包含err
+    if exception_tokens.contains(&Element::Terminal("err".to_string())) {
+      // 如果包含err，那么就把当前状态压栈
+      // TODO: 之后可能需要修改，删除状态栈中的Element
+      self.status_stack.push((self.get_last_token().clone(), self.status.clone()));
     }
     self.pos += 1;
   }
@@ -498,16 +541,33 @@ impl LR1Parser {
 
     self.closure(grammar, &goto_set)
   }
-}
 
-fn get_exception_symbols(action_table: &ActionTable, state: &State) -> Vec<Element> {
-  let mut exception_symbols = Vec::new();
+  fn get_exception_tokens(&self) -> Vec<Element> {
+    let mut exception_tokens = Vec::new();
 
-  for action in action_table {
-    if action.0.0 == state.clone() && action.0.1 != Element::Terminal("#".to_string()) {
-      exception_symbols.push(action.0.1.clone());
+    for action in &self.action_table {
+      if action.0.0 == self.status.state_stack.last().unwrap().clone() &&
+        action.0.1 != Element::Terminal("#".to_string()) {
+        exception_tokens.push(action.0.1.clone());
+      }
     }
+
+    exception_tokens
   }
 
-  exception_symbols
+  fn get_err_production(&mut self) -> LR1Item {
+    loop {
+      let tmp = self.status.state_stack.pop().unwrap();
+      for i in self.lr1_sets[tmp].iter() {
+        if let Element::Terminal(err) = &i.body[i.dot] {
+          if err == &"err".to_string() {
+            // println!("{:?}", i);
+            return i.clone();
+          }
+        }
+      }
+    }
+  }
 }
+
+
