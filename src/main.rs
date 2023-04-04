@@ -17,7 +17,7 @@ fn main() {
 
   #[rustfmt::skip]
     let input: Vec<Element> = vec![
-    "'int'", "Ident", "'('", "')'",
+    "'float'", "Ident", "'('", "')'",
     "'{'",
     "'if'", "'('", "IntConst", "')'", "'{'", "IntConst", "';'", "IntConst", "';'", "'}'",
     "'const'", "'int'", "Ident", "'='", "IntConst", "';'",

@@ -1,26 +1,31 @@
-%token err a b c d e # Ident IntConst FloatConst 'const' 'int' 'float' '[' ']' '=' '{' '}' ',' ';' 'void' '(' ')' 'if' 'else' 'while' 'break' 'continue' 'return' '+' '−' '!' '*' '/' '%' '<' '>' '<=' '>=' '==' '!=' '&&' '||' ε
+%token # Ident IntConst FloatConst 'const' 'int' 'float' '[' ']' '=' '{' '}' ',' ';' 'void' '(' ')' 'if' 'else' 'while' 'break' 'continue' 'return' '+' '−' '!' '*' '/' '%' '<' '>' '<=' '>=' '==' '!=' '&&' '||' ε
 {
 CompUnit':CompUnit
-CompUnit:Decl CompUnit#|#FuncDef CompUnit#|#ε
+CompUnit:DeclOrFuncDef CompUnitList
+CompUnitList:DeclOrFuncDef CompUnitList#|#ε
+DeclOrFuncDef:Decl#|#FuncDef
 Decl:ConstDecl#|#VarDecl
 ConstDecl:'const' BType ConstDef ConstDefList ';'
 BType:'int'#|#'float'
 ConstDef:Ident ConstExpList '=' ConstInitVal
 ConstDefList:',' ConstDef ConstDefList#|#ε
 ConstExpList:'[' ConstExp ']' ConstExpList#|#ε
-ConstInitVal:ConstExp#|#'{' ConstInitValList '}'
-ConstInitValList:ConstInitVal ConstInitValListTail#|#ε
-ConstInitValListTail:',' ConstInitVal ConstInitValListTail#|#ε
+ConstInitVal:ConstExp#|#'{' OptionalConstInitValList '}'
+OptionalConstInitValList:ConstInitVal ConstInitValList#|#ε
+ConstInitValList:',' ConstInitVal ConstInitValList#|#ε
 VarDecl:BType VarDef VarDefList ';'
-VarDef:Ident ConstExpList OptionalInitVal
+VarDef:VarDefNoEqual#|#VarDefWithEqual
+VarDefNoEqual:Ident VarDefNoEqualList
+VarDefWithEqual:Ident VarDefWithEqualList '=' InitVal
+VarDefNoEqualList:'[' ConstExp ']' VarDefNoEqualList#|#ε
+VarDefWithEqualList:'[' ConstExp ']' VarDefWithEqualList#|#ε
 VarDefList:',' VarDef VarDefList#|#ε
-OptionalInitVal:'=' InitVal#|#ε
-InitVal:Exp#|#'{' InitValList '}'
-InitValList:InitVal InitValListTail#|#ε
-InitValListTail:',' InitVal InitValListTail#|#ε
+InitVal:Exp#|#'{' OptionalInitValList '}'
+OptionalInitValList:InitVal InitValList#|#ε
+InitValList:',' InitVal InitValList#|#ε
 FuncDef:FuncType Ident '(' OptionalFuncFParams ')' Block
-FuncType:'void'#|#'int'#|#'float'
 OptionalFuncFParams:FuncFParams#|#ε
+FuncType:'void'#|#'int'#|#'float'
 FuncFParams:FuncFParam FuncFParamList
 FuncFParamList:',' FuncFParam FuncFParamList#|#ε
 FuncFParam:BType Ident OptionalBracketExpList
@@ -40,9 +45,9 @@ PrimaryExp:'(' Exp ')'#|#LVal#|#Number
 Number:IntConst#|#FloatConst
 UnaryExp:PrimaryExp#|#Ident '(' OptionalFuncRParams ')'#|#UnaryOp UnaryExp
 OptionalFuncRParams:FuncRParams#|#ε
+UnaryOp:'+'#|#'−'#|#'!'
 FuncRParams:Exp ExpListTail
 ExpListTail:',' Exp ExpListTail#|#ε
-UnaryOp:'+'#|#'−'#|#'!'
 MulExp:UnaryExp MulExp'
 MulExp':MulExpOp UnaryExp MulExp'#|#ε
 MulExpOp:'*'#|#'/'#|#'%'
@@ -60,7 +65,4 @@ LAndExp':'&&' EqExp LAndExp'#|#ε
 LOrExp:LAndExp LOrExp'
 LOrExp':'||' LAndExp LOrExp'#|#ε
 ConstExp:AddExp
-S':S
-S:a A d#|#b A c#|#a e c#|#b e d
-A:e#|#ε
 }
