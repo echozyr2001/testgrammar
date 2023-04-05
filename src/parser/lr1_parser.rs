@@ -1,7 +1,3 @@
-#![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(clippy::clone_on_copy)]
-
 use crate::parser::types::Element;
 use crate::parser::{Grammar, ACTION_TABLE, DATA_PATH, GOTO_TABLE, LR1_SETS};
 use serde::{Deserialize, Serialize};
@@ -19,10 +15,8 @@ type ErrorList = Vec<ParserError>;
 #[derive(Debug, Default)]
 pub struct LR1Parser {
   tokens: Vec<Element>,
-  error_list: Vec<ParserError>,
+  error_list: ErrorList,
   status: Status,
-  semicolon_err: bool,
-  semicolon_status: Status,
   status_stack: Vec<(Element, Status)>,
   pos: usize,
   pub lr1_sets: LR1Sets,
@@ -134,7 +128,7 @@ impl LR1Parser {
     });
 
     // 取得上一个能被恢复的状态
-    let (restore_token, restore_status) = self.status_stack.pop().unwrap();
+    let (_, restore_status) = self.status_stack.pop().unwrap();
     // 恢复状态
     self.status = restore_status;
     // 在此状态，根据分析表处理错误状态
@@ -154,11 +148,7 @@ impl LR1Parser {
         });
         self.step_forward();
       }
-      // _ => unreachable!(),
-      Some(Action::Accept) => {
-        println!("accept");
-        unreachable!();
-      }
+
       Some(Action::Reduce(prod_head, prod_body)) => {
         // 规约
         let mut children: Vec<TreeNode> = Vec::new();
@@ -181,16 +171,16 @@ impl LR1Parser {
           children: Some(children),
         });
       }
-      None => {
-        println!("none");
-        // unreachable!();
-      }
+      _ => unreachable!(),
     }
     // 之后，继续处理输入。将pos移动到能处理的位置
     while !self.can_process() {
       // TODO: 我的想法是直接让pos+1
       // self.step_forward();
       self.pos += 1;
+      if self.pos >= self.tokens.len() {
+        break;
+      }
     }
   }
 
@@ -240,10 +230,10 @@ pub struct ParserError {
 
 #[derive(Debug)]
 pub enum ErrorType {
-  // 缺失错误
-  Missing(String),
-  // 多余错误
-  Extra(String),
+  // // 缺失错误
+  // Missing(String),
+  // // 多余错误
+  // Extra(String),
   // 未知错误
   Unknown(String),
 }
@@ -551,19 +541,5 @@ impl LR1Parser {
     }
 
     exception_tokens
-  }
-
-  fn get_err_production(&mut self) -> LR1Item {
-    loop {
-      let tmp = self.status.state_stack.pop().unwrap();
-      for i in self.lr1_sets[tmp].iter() {
-        if let Element::Terminal(err) = &i.body[i.dot] {
-          if err == &"err".to_string() {
-            // println!("{:?}", i);
-            return i.clone();
-          }
-        }
-      }
-    }
   }
 }
