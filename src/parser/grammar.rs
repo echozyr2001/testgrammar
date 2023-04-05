@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs::File;
 use std::io::Read;
 use crate::parser::types::{Element, Item, PBody, PHead};
@@ -6,8 +6,10 @@ use crate::parser::types::{Element, Item, PBody, PHead};
 pub struct Grammar {
   file_buff: String,
   pub(crate) token_list: Vec<String>,
-  pub(crate) pro_list: HashMap<PHead, PBody>,
-  pub(crate) first_sets: HashMap<Element, HashSet<Element>>,
+  // pub(crate) pro_list: HashMap<PHead, PBody>,
+  pub(crate) pro_list: BTreeMap<PHead, PBody>,
+  // pub(crate) first_sets: HashMap<Element, HashSet<Element>>,
+  pub(crate) first_sets: BTreeMap<Element, HashSet<Element>>,
   pub(crate) start_symbol: Element,
 }
 
@@ -15,8 +17,8 @@ impl Grammar {
   pub fn new() -> Self {
     Self {
       token_list: Vec::<String>::new(),
-      pro_list: HashMap::<PHead, PBody>::new(),
-      first_sets: HashMap::<Element, HashSet<Element>>::new(),
+      pro_list: BTreeMap::<PHead, PBody>::new(),
+      first_sets: BTreeMap::<Element, HashSet<Element>>::new(),
       file_buff: String::new(),
       start_symbol: Element::NotTerminal("CompUnit'".to_string()),
     }

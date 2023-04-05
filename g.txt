@@ -12,7 +12,7 @@ ConstDefList:',' ConstDef ConstDefList#|#ε
 ConstExpList:'[' ConstExp ']' ConstExpList#|#ε
 ConstInitVal:ConstExp#|#'{' OptionalConstInitValList '}'
 OptionalConstInitValList:ConstInitVal ConstInitValList#|#ε
-ConstInitValList:',' ConstInitVal ConstInitValList#|#ε
+ConstInitValList:',' ConstInitVal ConstInitValList#|#ε//
 VarDecl:BType VarDef VarDefList ';'
 VarDef:VarDefNoEqual#|#VarDefWithEqual
 VarDefNoEqual:Ident VarDefNoEqualList
@@ -28,7 +28,7 @@ OptionalFuncFParams:FuncFParams#|#ε
 FuncType:'void'#|#'int'#|#'float'
 FuncFParams:FuncFParam FuncFParamList
 FuncFParamList:',' FuncFParam FuncFParamList#|#ε
-FuncFParam:BType Ident OptionalBracketExpList
+FuncFParam:BType Ident OptionalBracketExpList//
 OptionalBracketExpList:'[' ']' BracketExpList#|#ε
 BracketExpList:'[' Exp ']' BracketExpList#|#ε
 Block:'{' BlockItemList '}'
