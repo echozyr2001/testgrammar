@@ -1,4 +1,4 @@
-%token Ident IntConst FloatConst 'const' 'int' 'float' '[' ']' '=' '{' '}' ',' ';' 'void' '(' ')' 'if' 'else' 'while' 'break' 'continue' 'return' '+' '−' '!' '*' '/' '%' '<' '>' '<=' '>=' '==' '!=' '&&' '||' ε
+%token err Ident IntConst FloatConst 'const' 'int' 'float' '[' ']' '=' '{' '}' ',' ';' 'void' '(' ')' 'if' 'else' 'while' 'break' 'continue' 'return' '+' '−' '!' '*' '/' '%' '<' '>' '<=' '>=' '==' '!=' '&&' '||' ε
 {
 CompUnit':CompUnit
 CompUnit:Decl CompUnitOpt#|#FuncDef CompUnitOpt
@@ -10,14 +10,14 @@ BType:'int'#|#'float'
 ConstDef:Ident ConstDefArray '=' ConstInitVal
 ConstDefArray:ε#|#'[' ConstExp ']' ConstDefArray
 ConstInitVal:ConstExp#|#'{' ConstInitValList '}'
-ConstInitValList:ε#|#ConstInitVal ConstInitValListRest
+ConstInitValList:ε#|#ConstInitVal ConstInitValListRest#|#err
 ConstInitValListRest:ε#|#',' ConstInitVal ConstInitValListRest
 VarDecl:BType VarDef VarDeclRest ';'
 VarDeclRest:ε#|#',' VarDef VarDeclRest
 VarDef:Ident VarDefArray#|#Ident VarDefArray '=' InitVal
 VarDefArray:ε#|#'[' ConstExp ']' VarDefArray
 InitVal:Exp#|#'{' InitValList '}'
-InitValList:ε#|#InitVal InitValListRest
+InitValList:ε#|#InitVal InitValListRest#|#err
 InitValListRest:ε#|#',' InitVal InitValListRest
 FuncDef:FuncType Ident '(' FuncFParams ')' Block
 FuncType:'void'#|#'int'#|#'float'
@@ -27,13 +27,13 @@ FuncFParam:BType Ident FuncFParamArray
 FuncFParamArray:ε#|#'[' ']' FuncFParamArrayExp
 FuncFParamArrayExp:ε#|#'[' Exp ']' FuncFParamArrayExp
 Block:'{' BlockItems '}'
-BlockItems:ε#|#BlockItem BlockItems
+BlockItems:ε#|#BlockItem BlockItems#|#err
 BlockItem:Decl#|#Stmt
 Stmt:LVal '=' Exp ';'#|#ExpOpt ';'#|#Block#|#'if' '(' Cond ')' Stmt StmtElse#|#'while' '(' Cond ')' Stmt#|#'break' ';'#|#'continue' ';'#|#'return' ExpOpt ';'
 ExpOpt:ε#|#Exp
 StmtElse:ε#|#'else' Stmt
 Exp:AddExp
-Cond:LOrExp
+Cond:LOrExp#|#err
 LVal:Ident LValArray
 LValArray:ε#|#'[' Exp ']' LValArray
 PrimaryExp:'(' Exp ')'#|#LVal#|#Number

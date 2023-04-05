@@ -315,23 +315,23 @@ impl Display for TreeNode {
 
 impl LR1Parser {
   pub fn construct_parsing_table(&mut self, grammar: &Grammar) {
-    // if file_exists(ACTION_TABLE) && file_exists(GOTO_TABLE) {
-    //   let action_file = File::open(ACTION_TABLE).expect("Unable to open action table file");
-    //   let goto_file = File::open(GOTO_TABLE).expect("Unable to open goto table file");
-    //   self.action_table = bincode::deserialize_from(action_file).unwrap();
-    //   self.goto_table = bincode::deserialize_from(goto_file).unwrap();
-    // } else {
-    self.construct_parsing_table_core(grammar);
+    if file_exists(ACTION_TABLE) && file_exists(GOTO_TABLE) {
+      let action_file = File::open(ACTION_TABLE).expect("Unable to open action table file");
+      let goto_file = File::open(GOTO_TABLE).expect("Unable to open goto table file");
+      self.action_table = bincode::deserialize_from(action_file).unwrap();
+      self.goto_table = bincode::deserialize_from(goto_file).unwrap();
+    } else {
+      self.construct_parsing_table_core(grammar);
 
-    create_dir_all(DATA_PATH).expect("Unable to create action table file");
-    let mut action_file =
-      File::create(ACTION_TABLE).expect("Unable to create action table file");
-    let mut goto_file = File::create(GOTO_TABLE).expect("Unable to create goto table file");
-    bincode::serialize_into(&mut action_file, &self.action_table)
-      .expect("Unable to serialize action table");
-    bincode::serialize_into(&mut goto_file, &self.goto_table)
-      .expect("Unable to serialize goto table");
-    // }
+      create_dir_all(DATA_PATH).expect("Unable to create action table file");
+      let mut action_file =
+        File::create(ACTION_TABLE).expect("Unable to create action table file");
+      let mut goto_file = File::create(GOTO_TABLE).expect("Unable to create goto table file");
+      bincode::serialize_into(&mut action_file, &self.action_table)
+        .expect("Unable to serialize action table");
+      bincode::serialize_into(&mut goto_file, &self.goto_table)
+        .expect("Unable to serialize goto table");
+    }
   }
 
   // 构建LR1分析表
@@ -388,17 +388,17 @@ impl LR1Parser {
   }
 
   pub fn compute_lr1_item_sets(&mut self, grammar: &Grammar) {
-    // if file_exists(LR1_SETS) {
-    //   let lr1_file = File::open(LR1_SETS).expect("Unable to open action table file");
-    //   self.lr1_sets = bincode::deserialize_from(lr1_file).unwrap();
-    // } else {
-    self.compute_lr1_item_sets_core(grammar, &grammar.start_symbol);
+    if file_exists(LR1_SETS) {
+      let lr1_file = File::open(LR1_SETS).expect("Unable to open action table file");
+      self.lr1_sets = bincode::deserialize_from(lr1_file).unwrap();
+    } else {
+      self.compute_lr1_item_sets_core(grammar, &grammar.start_symbol);
 
-    create_dir_all(DATA_PATH).expect("Unable to create action table file");
-    let mut lr1_file = File::create(LR1_SETS).expect("Unable to create action table file");
-    bincode::serialize_into(&mut lr1_file, &self.lr1_sets)
-      .expect("Unable to serialize action table");
-    // }
+      create_dir_all(DATA_PATH).expect("Unable to create action table file");
+      let mut lr1_file = File::create(LR1_SETS).expect("Unable to create action table file");
+      bincode::serialize_into(&mut lr1_file, &self.lr1_sets)
+        .expect("Unable to serialize action table");
+    }
   }
 
   // NOTE: 不使用queue和visited
