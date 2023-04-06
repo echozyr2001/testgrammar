@@ -1,5 +1,5 @@
 use crate::parser::types::Token;
-use crate::parser::{Grammar, ACTION_TABLE, DATA_PATH, GOTO_TABLE, LR1_SETS, Point};
+use crate::parser::{Grammar, ACTION_TABLE, DATA_PATH, GOTO_TABLE, LR1_SETS, Point, END_SYMBOL, EMPTY_SYMBOL, ERROR_SYMBOL};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Display;
@@ -7,7 +7,7 @@ use std::fs::{create_dir_all, metadata, File};
 
 type State = usize;
 type GotoTable = BTreeMap<(State, Token), State>;
-type ActionTable = BTreeMap<(State, Token), Action>;
+type ActionTable = BTreeMap<(State, String), Action>;
 type LR1Sets = Vec<BTreeSet<LR1Item>>;
 type ErrorList = Vec<ParserError>;
 
@@ -37,7 +37,7 @@ impl LR1Parser {
     self.action_table
       .get(&(
         self.status.state_stack.last().unwrap().clone(),
-        self.get_current_token().clone(),
+        self.get_current_token().get_value().clone(),
       ))
       .is_some()
   }
@@ -46,9 +46,9 @@ impl LR1Parser {
 impl LR1Parser {
   pub fn construct_tree(mut self, input: &[Token]) -> Self {
     self.tokens = input.to_owned();
-    self.tokens.push(Token::new_terminal("#".to_string(), Point::new(0, 0)));
+    self.tokens.push(END_SYMBOL.clone());
     self.status_stack
-      .push((Token::new_terminal("#".to_string(), Point::new(0, 0)), self.status.clone()));
+      .push((END_SYMBOL.clone(), self.status.clone()));
 
     loop {
       if self.pos >= self.tokens.len() {
@@ -59,7 +59,7 @@ impl LR1Parser {
 
       let action = self
         .action_table
-        .get(&(state.clone(), symbol.clone()))
+        .get(&(state.clone(), symbol.get_value().clone()))
         .cloned();
 
       match action {
@@ -98,12 +98,12 @@ impl LR1Parser {
         None => {
           if let Some(Action::Shift(t)) = self
             .action_table
-            .get(&(state.clone(), Token::new_terminal("ε".to_string(), Point::new(0, 0))))
+            .get(&(state.clone(), EMPTY_SYMBOL.get_value().clone()))
             .cloned()
           {
             self.status.state_stack.push(t);
             self.status.node_stack.push(TreeNode {
-              element: Token::new_terminal("ε".to_string(), Point::new(0, 0)),
+              element: EMPTY_SYMBOL.clone(),
               children: None,
             });
           } else {
@@ -123,7 +123,7 @@ impl LR1Parser {
         "Unexpected symbol '{:?}' at position {}",
         self.tokens[self.pos], self.pos
       )),
-      error_pos: self.tokens[self.pos].get_pos().clone(),
+      error_pos: self.tokens[self.pos].get_pos().unwrap().clone(),
     });
 
     // 取得上一个能被恢复的状态
@@ -132,10 +132,10 @@ impl LR1Parser {
     self.status = restore_status;
     // 在此状态，根据分析表处理错误状态
     let state = self.status.state_stack.last().unwrap().clone();
-    let symbol = Token::new_terminal("err".to_string(), Point::new(0, 0));
+    let symbol = ERROR_SYMBOL.clone();
     let action = self
       .action_table
-      .get(&(state.clone(), symbol.clone()))
+      .get(&(state.clone(), symbol.get_value().clone()))
       .cloned();
     // action 应该只能是shift
     match action {
@@ -191,7 +191,7 @@ impl LR1Parser {
     // 首先获取当前状态的期望符号集
     let exception_tokens = self.get_exception_tokens();
     // 然后查看期望符号集中是否包含err
-    if exception_tokens.contains(&Token::new_terminal("err".to_string(), Point::new(0, 0))) {
+    if exception_tokens.contains(&ERROR_SYMBOL.get_value()) {
       // 如果包含err，那么就把当前状态压栈
       // TODO: 之后可能需要修改，删除状态栈中的Element
       self.status_stack
@@ -211,7 +211,7 @@ impl Default for Status {
   fn default() -> Self {
     let state_stack = vec![0];
     let node_stack = vec![TreeNode {
-      element: Token::new_terminal("#".to_string(), Point::new(0, 0)),
+      element: END_SYMBOL.clone(),
       children: None,
     }];
     Self {
@@ -288,7 +288,7 @@ impl Display for TreeNode {
       for _ in 0..depth {
         indent.push_str("  ");
       }
-      if tree.element != Token::new_terminal("ε".to_string(), Point::new(0, 0)) {
+      if tree.element != *EMPTY_SYMBOL {
         println!("{}{:?}", indent, tree.element);
       }
       if let Some(children) = &tree.children {
@@ -335,7 +335,7 @@ impl LR1Parser {
               self.goto(grammar, item_set, token);
             let goto_state = self.lr1_sets.iter().position(|x| *x == goto_set).unwrap();
             self.action_table.insert(
-              (state, token.clone()),
+              (state, token.get_value().clone()),
               Action::Shift(goto_state),
             );
           }
@@ -350,10 +350,10 @@ impl LR1Parser {
           // TODO: 出错检查此处
           None => {
             if item.head == grammar.start_symbol
-              && item.lookahead == Token::new_terminal("#".to_string(), Point::new(0, 0))
+              && item.lookahead == *END_SYMBOL
             {
               self.action_table.insert(
-                (state, item.lookahead.clone()),
+                (state, item.lookahead.get_value().clone()),
                 Action::Accept,
               );
             } else {
@@ -365,7 +365,7 @@ impl LR1Parser {
                 .position(|x| *x == item.body)
                 .unwrap();
               self.action_table.insert(
-                (state, item.lookahead.clone()),
+                (state, item.lookahead.get_value().clone()),
                 Action::Reduce(
                   item.head.clone(),
                   grammar.pro_list.get(&item.head).unwrap()[prod_index].clone(),
@@ -398,7 +398,7 @@ impl LR1Parser {
     // TODO: 若出错，首先检查这里
     let body = vec![grammar.pro_list.get(start_symbol).unwrap()[0][0].clone()];
     let dot = 0;
-    let lookahead = Token::new_terminal("#".to_string(), Point::new(0, 0));
+    let lookahead = END_SYMBOL.clone();
     let initial_item = LR1Item {
       head,
       body,
@@ -418,7 +418,7 @@ impl LR1Parser {
       let terminals = grammar
         .token_list
         .iter()
-        .map(|s| Token::new_terminal(s.to_string(), Point::new(0, 0)));
+        .map(|s| Token::new_terminal(s.to_string(), None));
       let non_terminals = grammar.pro_list.keys().cloned();
 
       for symbol in terminals.chain(non_terminals) {
@@ -535,12 +535,12 @@ impl LR1Parser {
     self.closure(grammar, &goto_set)
   }
 
-  fn get_exception_tokens(&self) -> Vec<Token> {
+  fn get_exception_tokens(&self) -> Vec<String> {
     let mut exception_tokens = Vec::new();
 
     for action in &self.action_table {
       if action.0.0 == self.status.state_stack.last().unwrap().clone()
-        && action.0.1 != Token::new_terminal("#".to_string(), Point::new(0, 0))
+        && action.0.1 != *END_SYMBOL.get_value()
       {
         exception_tokens.push(action.0.1.clone());
       }

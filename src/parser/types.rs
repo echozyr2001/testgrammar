@@ -4,11 +4,11 @@ use serde::{Deserialize, Serialize};
 pub struct Token {
   token_type: TokenType,
   value: String,
-  pos: Point,
+  pos: Option<Point>,
 }
 
 impl Token {
-  fn new(token_type: TokenType, value: String, pos: Point) -> Self {
+  fn new(token_type: TokenType, value: String, pos: Option<Point>) -> Self {
     Self {
       token_type,
       value,
@@ -16,11 +16,11 @@ impl Token {
     }
   }
 
-  pub fn new_terminal(value: String, pos: Point) -> Self {
+  pub fn new_terminal(value: String, pos: Option<Point>) -> Self {
     Self::new(TokenType::Terminal(TokenKind::Identifier), value, pos)
   }
 
-  pub fn new_not_terminal(value: String, pos: Point) -> Self {
+  pub fn new_not_terminal(value: String, pos: Option<Point>) -> Self {
     Self::new(TokenType::NotTerminal(TokenKind::Identifier), value, pos)
   }
 
@@ -38,8 +38,12 @@ impl Token {
     false
   }
 
-  pub fn get_pos(&self) -> &Point {
+  pub fn get_pos(&self) -> &Option<Point> {
     &self.pos
+  }
+
+  pub fn get_value(&self) -> &String {
+    &self.value
   }
 }
 
@@ -58,7 +62,7 @@ pub enum TokenKind {
   Separator,
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Ord, PartialOrd, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Clone,Copy, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct Point {
   row: usize,
   col: usize,

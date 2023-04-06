@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::Read;
-use crate::parser::{Point, START_SYMBOL};
+use crate::parser::{EMPTY_SYMBOL, START_SYMBOL};
 use crate::parser::types::{Token, Item, PBody, PHead};
 
 #[derive(Debug)]
@@ -20,7 +20,7 @@ impl Grammar {
       pro_list: BTreeMap::<PHead, PBody>::new(),
       first_sets: BTreeMap::<Token, BTreeSet<Token>>::new(),
       file_buff: String::new(),
-      start_symbol: Token::new_not_terminal(START_SYMBOL.to_string(),Point::new(0, 0)),
+      start_symbol: START_SYMBOL.clone(),
     }
     // Self::default()
   }
@@ -47,7 +47,7 @@ impl Grammar {
       {
         let mut tmp = line.split(':'); // 只有可能是两部分
         // let p_head = PHead::NotTerminal(tmp.next().unwrap().to_string());
-        let p_head = Token::new_not_terminal(tmp.next().unwrap().to_string(), Point::new(0, 0));
+        let p_head = Token::new_not_terminal(tmp.next().unwrap().to_string(), None);
         let mut p_body = PBody::new();
         let items = tmp.next().unwrap().split("#|#"); // 拆分右部
         for item in items {
@@ -57,10 +57,10 @@ impl Grammar {
             item.push(
               if self.token_list.contains(&element.to_string()) {
                 // Element::Terminal(element.to_string())
-                Token::new_terminal(element.to_string(), Point::new(0, 0))
+                Token::new_terminal(element.to_string(), None)
               } else {
                 // Element::NotTerminal(element.to_string())
-                Token::new_not_terminal(element.to_string(), Point::new(0, 0))
+                Token::new_not_terminal(element.to_string(), None)
               }
             );
           }
@@ -95,7 +95,7 @@ impl Grammar {
               token if token.is_not_terminal() => {
                 let mut first_set = self.first(first_symbol);
                 let mut i = 1;
-                let empty_symbol = Token::new_terminal("ε".to_string(), Point::new(0, 0));
+                let empty_symbol = EMPTY_SYMBOL.clone();
                 while i < production.len() && first_set.contains(&empty_symbol) {
                   first_set.remove(&empty_symbol);
                   result.extend(first_set);
@@ -139,7 +139,7 @@ impl Grammar {
         }
         token if token.is_not_terminal() => {
           let first_set = self.first_sets.get(symbol).unwrap();
-          let empty_symbol = Token::new_terminal("ε".to_string(), Point::new(0, 0));
+          let empty_symbol = EMPTY_SYMBOL.clone();
 
           if first_set.contains(&empty_symbol) {
             epsilon = true;
