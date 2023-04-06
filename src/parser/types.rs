@@ -1,55 +1,78 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Eq, Hash, PartialEq, Clone, Ord, PartialOrd,Serialize, Deserialize)]
-pub enum Element {
-  Terminal(String),
-  NotTerminal(String),
+#[derive(Debug, Eq, PartialEq, Clone, Ord, PartialOrd, Serialize, Deserialize)]
+pub struct Token {
+  token_type: TokenType,
+  value: String,
+  pos: Point,
 }
 
-impl Element {
-  // pub(crate) fn is_semicolon(&self) -> bool {
-  //   if let Element::Terminal(token) = self {
-  //     return token.as_str() == "';'";
-  //   }
-  //   false
-  // }
-  //
-  // pub(crate) fn is_left_bracket(&self) -> bool {
-  //   if let Element::Terminal(token) = self {
-  //     return token.as_str() == "'{'" || token.as_str() == "'['" || token.as_str() == "'('";
-  //   }
-  //   false
-  // }
-  //
-  // pub(crate) fn is_right_bracket(&self) -> bool {
-  //   if let Element::Terminal(token) = self {
-  //     return token.as_str() == "'}'" || token.as_str() == "']'" || token.as_str() == "')'";
-  //   }
-  //   false
-  // }
-  //
-  // pub(crate) fn is_paired(&self, rhs: &Element) -> bool {
-  //   let left = self.clone().unwarp().0;
-  //   let right = rhs.clone().unwarp().0;
-  //   match right.as_str() {
-  //     "'}'" => left.as_str() == "'{'",
-  //     "']'" => left.as_str() == "'['",
-  //     "')'" => left.as_str() == "'('",
-  //     &_ => false,
-  //   }
-  // }
-  //
-  // pub(crate) fn unwarp(self) -> (String, usize) {
-  //   match self {
-  //     Self::NotTerminal(v) => (v, 0),
-  //     Self::Terminal(v) => (v, 1),
-  //   }
-  // }
-  pub(crate) fn get_pos(&self) -> usize {
-    0
+impl Token {
+  fn new(token_type: TokenType, value: String, pos: Point) -> Self {
+    Self {
+      token_type,
+      value,
+      pos,
+    }
+  }
+
+  pub fn new_terminal(value: String, pos: Point) -> Self {
+    Self::new(TokenType::Terminal(TokenKind::Identifier), value, pos)
+  }
+
+  pub fn new_not_terminal(value: String, pos: Point) -> Self {
+    Self::new(TokenType::NotTerminal(TokenKind::Identifier), value, pos)
+  }
+
+  pub fn is_terminal(&self) -> bool {
+    if let TokenType::Terminal(_) = self.token_type {
+      return true;
+    }
+    false
+  }
+
+  pub fn is_not_terminal(&self) -> bool {
+    if let TokenType::NotTerminal(_) = self.token_type {
+      return true;
+    }
+    false
+  }
+
+  pub fn get_pos(&self) -> &Point {
+    &self.pos
   }
 }
 
-pub(crate) type Item = Vec<Element>;
-pub(crate) type PHead = Element;
+#[derive(Debug, Eq, PartialEq, Clone, Ord, PartialOrd, Serialize, Deserialize)]
+pub enum TokenType {
+  Terminal(TokenKind),
+  NotTerminal(TokenKind),
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Ord, PartialOrd, Serialize, Deserialize)]
+pub enum TokenKind {
+  Keyword,
+  Identifier,
+  Operator,
+  Literal,
+  Separator,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Ord, PartialOrd, Serialize, Deserialize)]
+pub struct Point {
+  row: usize,
+  col: usize,
+}
+
+impl Point {
+  pub fn new(row: usize, col: usize) -> Self {
+    Self {
+      row,
+      col,
+    }
+  }
+}
+
+pub(crate) type Item = Vec<Token>;
+pub(crate) type PHead = Token;
 pub(crate) type PBody = Vec<Item>;

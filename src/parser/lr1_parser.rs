@@ -1,23 +1,22 @@
-use crate::parser::types::Element;
-use crate::parser::{Grammar, ACTION_TABLE, DATA_PATH, GOTO_TABLE, LR1_SETS};
+use crate::parser::types::Token;
+use crate::parser::{Grammar, ACTION_TABLE, DATA_PATH, GOTO_TABLE, LR1_SETS, Point};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Display;
 use std::fs::{create_dir_all, metadata, File};
 
-
 type State = usize;
-type GotoTable = BTreeMap<(State, Element), State>;
-type ActionTable = BTreeMap<(State, Element), Action>;
+type GotoTable = BTreeMap<(State, Token), State>;
+type ActionTable = BTreeMap<(State, Token), Action>;
 type LR1Sets = Vec<BTreeSet<LR1Item>>;
 type ErrorList = Vec<ParserError>;
 
 #[derive(Debug, Default)]
 pub struct LR1Parser {
-  tokens: Vec<Element>,
+  tokens: Vec<Token>,
   error_list: ErrorList,
   status: Status,
-  status_stack: Vec<(Element, Status)>,
+  status_stack: Vec<(Token, Status)>,
   pos: usize,
   pub lr1_sets: LR1Sets,
   pub action_table: ActionTable,
@@ -28,10 +27,10 @@ impl LR1Parser {
   pub fn new() -> Self {
     Self::default()
   }
-  fn get_last_token(&self) -> &Element {
+  fn get_last_token(&self) -> &Token {
     &self.tokens[if self.pos == 0 { 0 } else { self.pos - 1 }]
   }
-  fn get_current_token(&self) -> &Element {
+  fn get_current_token(&self) -> &Token {
     &self.tokens[self.pos]
   }
   fn can_process(&self) -> bool {
@@ -45,11 +44,11 @@ impl LR1Parser {
 }
 
 impl LR1Parser {
-  pub fn construct_tree(mut self, input: &[Element]) -> Self {
+  pub fn construct_tree(mut self, input: &[Token]) -> Self {
     self.tokens = input.to_owned();
-    self.tokens.push(Element::Terminal("#".to_string()));
+    self.tokens.push(Token::new_terminal("#".to_string(), Point::new(0, 0)));
     self.status_stack
-      .push((Element::Terminal("#".to_string()), self.status.clone()));
+      .push((Token::new_terminal("#".to_string(), Point::new(0, 0)), self.status.clone()));
 
     loop {
       if self.pos >= self.tokens.len() {
@@ -99,12 +98,12 @@ impl LR1Parser {
         None => {
           if let Some(Action::Shift(t)) = self
             .action_table
-            .get(&(state.clone(), Element::Terminal("ε".to_string())))
+            .get(&(state.clone(), Token::new_terminal("ε".to_string(), Point::new(0, 0))))
             .cloned()
           {
             self.status.state_stack.push(t);
             self.status.node_stack.push(TreeNode {
-              element: Element::Terminal("ε".to_string()),
+              element: Token::new_terminal("ε".to_string(), Point::new(0, 0)),
               children: None,
             });
           } else {
@@ -124,7 +123,7 @@ impl LR1Parser {
         "Unexpected symbol '{:?}' at position {}",
         self.tokens[self.pos], self.pos
       )),
-      error_pos: self.tokens[self.pos].get_pos(),
+      error_pos: self.tokens[self.pos].get_pos().clone(),
     });
 
     // 取得上一个能被恢复的状态
@@ -133,7 +132,7 @@ impl LR1Parser {
     self.status = restore_status;
     // 在此状态，根据分析表处理错误状态
     let state = self.status.state_stack.last().unwrap().clone();
-    let symbol = Element::Terminal("err".to_string());
+    let symbol = Token::new_terminal("err".to_string(), Point::new(0, 0));
     let action = self
       .action_table
       .get(&(state.clone(), symbol.clone()))
@@ -192,7 +191,7 @@ impl LR1Parser {
     // 首先获取当前状态的期望符号集
     let exception_tokens = self.get_exception_tokens();
     // 然后查看期望符号集中是否包含err
-    if exception_tokens.contains(&Element::Terminal("err".to_string())) {
+    if exception_tokens.contains(&Token::new_terminal("err".to_string(), Point::new(0, 0))) {
       // 如果包含err，那么就把当前状态压栈
       // TODO: 之后可能需要修改，删除状态栈中的Element
       self.status_stack
@@ -212,7 +211,7 @@ impl Default for Status {
   fn default() -> Self {
     let state_stack = vec![0];
     let node_stack = vec![TreeNode {
-      element: Element::NotTerminal("#".to_string()),
+      element: Token::new_terminal("#".to_string(), Point::new(0, 0)),
       children: None,
     }];
     Self {
@@ -225,7 +224,7 @@ impl Default for Status {
 #[derive(Debug)]
 pub struct ParserError {
   pub error_type: ErrorType,
-  pub error_pos: usize,
+  pub error_pos: Point,
 }
 
 #[derive(Debug)]
@@ -240,22 +239,22 @@ pub enum ErrorType {
 
 #[derive(Clone, PartialEq, Eq, Debug, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct LR1Item {
-  pub(crate) head: Element,
-  body: Vec<Element>,
+  pub(crate) head: Token,
+  body: Vec<Token>,
   dot: usize,
-  pub(crate) lookahead: Element,
+  pub(crate) lookahead: Token,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Action {
   Shift(usize),
-  Reduce(Element, Vec<Element>),
+  Reduce(Token, Vec<Token>),
   Accept,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TreeNode {
-  pub element: Element,
+  pub element: Token,
   pub children: Option<Vec<TreeNode>>,
 }
 
@@ -289,7 +288,7 @@ impl Display for TreeNode {
       for _ in 0..depth {
         indent.push_str("  ");
       }
-      if tree.element != Element::Terminal("ε".to_string()) {
+      if tree.element != Token::new_terminal("ε".to_string(), Point::new(0, 0)) {
         println!("{}{:?}", indent, tree.element);
       }
       if let Some(children) = &tree.children {
@@ -331,28 +330,30 @@ impl LR1Parser {
         let dot_position = item.dot;
         let next_symbol = item.body.get(dot_position);
         match next_symbol {
-          Some(Element::Terminal(a)) => {
+          Some(token) if token.is_terminal() => {
             let goto_set =
-              self.goto(grammar, item_set, &Element::Terminal(a.to_string()));
+              self.goto(grammar, item_set, token);
             let goto_state = self.lr1_sets.iter().position(|x| *x == goto_set).unwrap();
             self.action_table.insert(
-              (state, Element::Terminal(a.to_string())),
+              (state, token.clone()),
               Action::Shift(goto_state),
             );
           }
-          Some(Element::NotTerminal(a)) => {
+          Some(token) if token.is_not_terminal() => {
             let goto_set =
-              self.goto(grammar, item_set, &Element::NotTerminal(a.to_string()));
+              self.goto(grammar, item_set, token);
             let goto_state = self.lr1_sets.iter().position(|x| *x == goto_set).unwrap();
             self.goto_table
-              .insert((state, Element::NotTerminal(a.to_string())), goto_state);
+              .insert((state, token.clone()), goto_state);
           }
+          Some(_) => { unreachable!() }
+          // TODO: 出错检查此处
           None => {
             if item.head == grammar.start_symbol
-              && item.lookahead == Element::Terminal("#".to_string())
+              && item.lookahead == Token::new_terminal("#".to_string(), Point::new(0, 0))
             {
               self.action_table.insert(
-                (state, Element::Terminal("#".to_string())),
+                (state, item.lookahead.clone()),
                 Action::Accept,
               );
             } else {
@@ -383,7 +384,6 @@ impl LR1Parser {
       self.lr1_sets = bincode::deserialize_from(lr1_file).unwrap();
     } else {
       self.compute_lr1_item_sets_core(grammar, &grammar.start_symbol);
-
       create_dir_all(DATA_PATH).expect("Unable to create action table file");
       let mut lr1_file = File::create(LR1_SETS).expect("Unable to create action table file");
       bincode::serialize_into(&mut lr1_file, &self.lr1_sets)
@@ -392,13 +392,18 @@ impl LR1Parser {
   }
 
   // NOTE: 不使用queue和visited
-  fn compute_lr1_item_sets_core(&mut self, grammar: &Grammar, start_symbol: &Element) {
+  fn compute_lr1_item_sets_core(&mut self, grammar: &Grammar, start_symbol: &Token) {
     let mut item_sets = Vec::<BTreeSet<LR1Item>>::new();
+    let head = start_symbol.clone();
+    // TODO: 若出错，首先检查这里
+    let body = vec![grammar.pro_list.get(start_symbol).unwrap()[0][0].clone()];
+    let dot = 0;
+    let lookahead = Token::new_terminal("#".to_string(), Point::new(0, 0));
     let initial_item = LR1Item {
-      head: start_symbol.clone(),
-      body: grammar.pro_list.get(start_symbol).unwrap()[0].clone(),
-      dot: 0,
-      lookahead: Element::Terminal("#".to_string()),
+      head,
+      body,
+      dot,
+      lookahead,
     };
 
     let mut initial_closure = BTreeSet::new();
@@ -413,7 +418,7 @@ impl LR1Parser {
       let terminals = grammar
         .token_list
         .iter()
-        .map(|s| Element::Terminal(s.clone()));
+        .map(|s| Token::new_terminal(s.to_string(), Point::new(0, 0)));
       let non_terminals = grammar.pro_list.keys().cloned();
 
       for symbol in terminals.chain(non_terminals) {
@@ -481,7 +486,7 @@ impl LR1Parser {
           let next_symbol = &item.body[dot_position];
 
           match next_symbol {
-            Element::NotTerminal(_) => {
+            token if token.is_not_terminal() => {
               let lookahead_symbols = grammar
                 .first_symbols(&item.body[(dot_position + 1)..], &item.lookahead);
               let productions = grammar.pro_list.get(next_symbol).unwrap();
@@ -502,7 +507,8 @@ impl LR1Parser {
                 }
               }
             }
-            Element::Terminal(_) => {}
+            token if token.is_terminal() => {}
+            _ => { unreachable!() }
           }
         }
       }
@@ -514,7 +520,7 @@ impl LR1Parser {
     &self,
     grammar: &Grammar,
     item_set: &BTreeSet<LR1Item>,
-    symbol: &Element,
+    symbol: &Token,
   ) -> BTreeSet<LR1Item> {
     let mut goto_set = BTreeSet::new();
 
@@ -529,12 +535,12 @@ impl LR1Parser {
     self.closure(grammar, &goto_set)
   }
 
-  fn get_exception_tokens(&self) -> Vec<Element> {
+  fn get_exception_tokens(&self) -> Vec<Token> {
     let mut exception_tokens = Vec::new();
 
     for action in &self.action_table {
       if action.0.0 == self.status.state_stack.last().unwrap().clone()
-        && action.0.1 != Element::Terminal("#".to_string())
+        && action.0.1 != Token::new_terminal("#".to_string(), Point::new(0, 0))
       {
         exception_tokens.push(action.0.1.clone());
       }

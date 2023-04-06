@@ -1,16 +1,16 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::Read;
-use crate::parser::types::{Element, Item, PBody, PHead};
+use crate::parser::{Point, START_SYMBOL};
+use crate::parser::types::{Token, Item, PBody, PHead};
 
+#[derive(Debug)]
 pub struct Grammar {
   file_buff: String,
   pub(crate) token_list: Vec<String>,
-  // pub(crate) pro_list: HashMap<PHead, PBody>,
   pub(crate) pro_list: BTreeMap<PHead, PBody>,
-  // pub(crate) first_sets: HashMap<Element, HashSet<Element>>,
-  pub(crate) first_sets: BTreeMap<Element, HashSet<Element>>,
-  pub(crate) start_symbol: Element,
+  pub(crate) first_sets: BTreeMap<Token, BTreeSet<Token>>,
+  pub(crate) start_symbol: Token,
 }
 
 impl Grammar {
@@ -18,10 +18,11 @@ impl Grammar {
     Self {
       token_list: Vec::<String>::new(),
       pro_list: BTreeMap::<PHead, PBody>::new(),
-      first_sets: BTreeMap::<Element, HashSet<Element>>::new(),
+      first_sets: BTreeMap::<Token, BTreeSet<Token>>::new(),
       file_buff: String::new(),
-      start_symbol: Element::NotTerminal("CompUnit'".to_string()),
+      start_symbol: Token::new_not_terminal(START_SYMBOL.to_string(),Point::new(0, 0)),
     }
+    // Self::default()
   }
 
   fn file_load(&mut self, file_path: &str) {
@@ -45,7 +46,8 @@ impl Grammar {
       }
       {
         let mut tmp = line.split(':'); // 只有可能是两部分
-        let p_head = PHead::NotTerminal(tmp.next().unwrap().to_string());
+        // let p_head = PHead::NotTerminal(tmp.next().unwrap().to_string());
+        let p_head = Token::new_not_terminal(tmp.next().unwrap().to_string(), Point::new(0, 0));
         let mut p_body = PBody::new();
         let items = tmp.next().unwrap().split("#|#"); // 拆分右部
         for item in items {
@@ -54,9 +56,11 @@ impl Grammar {
           for element in elements {
             item.push(
               if self.token_list.contains(&element.to_string()) {
-                Element::Terminal(element.to_string())
+                // Element::Terminal(element.to_string())
+                Token::new_terminal(element.to_string(), Point::new(0, 0))
               } else {
-                Element::NotTerminal(element.to_string())
+                // Element::NotTerminal(element.to_string())
+                Token::new_not_terminal(element.to_string(), Point::new(0, 0))
               }
             );
           }
@@ -69,42 +73,44 @@ impl Grammar {
     self.calculate_first_sets();
   }
 
-  fn first(&mut self, symbol: &Element) -> HashSet<Element> {
+  fn first(&mut self, symbol: &Token) -> BTreeSet<Token> {
     if let Some(first_set) = self.first_sets.get(symbol) {
       return first_set.clone();
     }
 
-    let mut result = HashSet::new();
+    let mut result = BTreeSet::new();
     match symbol {
-      Element::Terminal(_) => {
+      token if token.is_terminal() => {
         result.insert(symbol.clone());
       }
-      Element::NotTerminal(_) => {
+      token if token.is_not_terminal() => {
         if let Some(productions) = self.pro_list.get(symbol) {
           let productions: Vec<Vec<_>> = productions.to_vec();
           for production in productions {
             let first_symbol = &production[0];
             match first_symbol {
-              Element::Terminal(_) => {
+              token if token.is_terminal() => {
                 result.insert(first_symbol.clone());
               }
-              Element::NotTerminal(_) => {
+              token if token.is_not_terminal() => {
                 let mut first_set = self.first(first_symbol);
                 let mut i = 1;
-                while i < production.len() && first_set.contains(&Element::Terminal("ε".to_string())) {
-                  first_set.remove(&Element::Terminal("ε".to_string()));
+                let empty_symbol = Token::new_terminal("ε".to_string(), Point::new(0, 0));
+                while i < production.len() && first_set.contains(&empty_symbol) {
+                  first_set.remove(&empty_symbol);
                   result.extend(first_set);
-
                   let next_symbol = &production[i];
                   first_set = self.first(next_symbol);
                   i += 1;
                 }
                 result.extend(first_set);
               }
+              _ => { unreachable!() }
             }
           }
         }
       }
+      _ => { unreachable!() }
     }
 
     self.first_sets.insert(symbol.clone(), result.clone());
@@ -119,29 +125,31 @@ impl Grammar {
     }
   }
 
-  pub(crate) fn first_symbols(&self, symbols: &[Element], fallback: &Element) -> HashSet<Element> {
-    let mut result = HashSet::new();
+  pub(crate) fn first_symbols(&self, symbols: &[Token], fallback: &Token) -> BTreeSet<Token> {
+    let mut result = BTreeSet::new();
     let mut epsilon = true;
 
     for symbol in symbols {
       epsilon = false;
 
       match symbol {
-        Element::Terminal(_) => {
+        token if token.is_terminal() => {
           result.insert(symbol.clone());
           break;
         }
-        Element::NotTerminal(_) => {
+        token if token.is_not_terminal() => {
           let first_set = self.first_sets.get(symbol).unwrap();
+          let empty_symbol = Token::new_terminal("ε".to_string(), Point::new(0, 0));
 
-          if first_set.contains(&Element::Terminal("ε".to_string())) {
+          if first_set.contains(&empty_symbol) {
             epsilon = true;
-            result.extend(first_set.clone().into_iter().filter(|x| *x != Element::Terminal("ε".to_string())));
+            result.extend(first_set.clone().into_iter().filter(|x| *x != empty_symbol));
           } else {
             result.extend(first_set.clone().into_iter());
             break;
           }
         }
+        _ => { unreachable!() }
       }
     }
 
